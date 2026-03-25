@@ -1,0 +1,22 @@
+{
+    "name": "@drms/database",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+        "db:generate": "prisma generate",
+        "db:migrate:dev": "prisma migrate dev",
+        "db:migrate:deploy": "prisma migrate deploy",
+        "db:seed": "ts-node --project tsconfig.json prisma/seed/index.ts",
+        "db:studio": "prisma studio",
+        "db:reset": "prisma migrate reset"
+    },
+    "dependencies": {
+        "@prisma/client": "^5.13.0"
+    },
+    "devDependencies": {
+        "prisma": "^5.13.0",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.4.0",
+        "@types/node": "^20.0.0"
+    }
+}

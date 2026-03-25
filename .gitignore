@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+.next/
+out/
+
+# Environment — JANGAN PERNAH commit file ini
+.env
+.env.local
+.env.*.local
+apps/**/.env
+packages/**/.env
+
+# Prisma generated
+packages/database/generated/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Turborepo cache
+.turbo/
+
+# Test coverage
+coverage/
+
+# IDE
+.vscode/
+.idea/
+

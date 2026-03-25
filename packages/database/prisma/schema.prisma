@@ -1,0 +1,350 @@
+// =============================================================================
+// FILE: packages/database/prisma/schema.prisma
+// =============================================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch", "fullTextIndex"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum Role {
+  USER
+  USER_APPROVAL
+  USER_SETUM
+}
+
+enum StatusArsip {
+  AKTIF
+  INAKTIF
+  USUL_MUSNAH
+  MUSNAH
+  PERMANEN
+}
+
+enum TingkatPerkembangan {
+  ASLI
+  SALINAN
+}
+
+enum KondisiFisik {
+  BAIK
+  RUSAK
+  LENGKAP
+  TIDAK_LENGKAP
+}
+
+enum KeteranganRetensi {
+  PERMANEN
+  MUSNAH
+}
+
+enum StatusApproval {
+  PENDING
+  DISETUJUI
+  DITOLAK
+}
+
+enum JenisNotifikasi {
+  RETENSI_AKTIF_BERAKHIR
+  RETENSI_INAKTIF_BERAKHIR
+  USUL_MUSNAH_BARU
+  USUL_MUSNAH_DISETUJUI
+  USUL_MUSNAH_DITOLAK
+  PERPANJANGAN_DISETUJUI
+  PERPANJANGAN_DITOLAK
+  VERIFIKASI_SETUM_DIBUTUHKAN
+}
+
+// =============================================================================
+// MASTER DATA
+// =============================================================================
+
+model UnitKerja {
+  id       String  @id @default(cuid())
+  kode     String  @unique
+  nama     String
+  level    Int     @default(1)
+  isActive Boolean @default(true)
+
+  parentId String?
+  parent   UnitKerja?  @relation("UnitKerjaHirarki", fields: [parentId], references: [id])
+  children UnitKerja[] @relation("UnitKerjaHirarki")
+
+  users  User[]
+  arsips Arsip[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([parentId])
+  @@map("unit_kerja")
+}
+
+model KodeKlasifikasi {
+  id   String @id @default(cuid())
+  kode String @unique
+
+  noUrut    Int
+  kategori  String
+  subKategori String?
+  jenisArsip String
+  komponenDokumen String?
+
+  retensiAktifBulan    Int
+  retensiInaktifBulan  Int
+  keterangan KeteranganRetensi
+
+  catatanRetensiAktif    String?
+  catatanRetensiInaktif  String?
+
+  arsips Arsip[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([noUrut])
+  @@index([kategori])
+  @@map("kode_klasifikasi")
+}
+
+// =============================================================================
+// USER MANAGEMENT
+// =============================================================================
+
+model User {
+  id          String  @id @default(cuid())
+  adUsername  String  @unique
+  nama        String
+  email       String  @unique
+  jabatan     String?
+  nip         String? @unique
+  role        Role    @default(USER)
+  isActive    Boolean @default(true)
+
+  unitKerjaId String
+  unitKerja   UnitKerja @relation(fields: [unitKerjaId], references: [id])
+
+  arsipDibuat   Arsip[] @relation("ArsipCreatedBy")
+  arsipDiupdate Arsip[] @relation("ArsipUpdatedBy")
+
+  usulDiajukan        UsulMusnah[]          @relation("UsulDiajukanOleh")
+  usulApproved        UsulMusnah[]          @relation("UsulApprovedOleh")
+  usulVerifikasiSetum UsulMusnah[]          @relation("UsulVerifikasiSetum")
+  perpDiajukan        PerpanjanganRetensi[] @relation("PerpanjanganDiajukan")
+  perpApproved        PerpanjanganRetensi[] @relation("PerpanjanganApproved")
+
+  auditLogs    AuditLog[]
+  notifikasis  Notifikasi[]
+
+  lastLoginAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([unitKerjaId])
+  @@index([role])
+  @@map("users")
+}
+
+// =============================================================================
+// CORE: ARSIP
+// =============================================================================
+
+model Arsip {
+  id           String  @id @default(cuid())
+  nomorArsip   String?
+  nomorBerkas  String
+
+  kodeKlasifikasiId String
+  kodeKlasifikasi   KodeKlasifikasi @relation(fields: [kodeKlasifikasiId], references: [id])
+
+  uraianInformasi String? @db.Text
+  tahun           Int
+
+  tingkatPerkembangan TingkatPerkembangan @default(ASLI)
+  kondisiFisik        KondisiFisik        @default(BAIK)
+  jumlahBerkas        Int                 @default(1)
+
+  status StatusArsip @default(AKTIF)
+
+  unitKerjaId String
+  unitKerja   UnitKerja @relation(fields: [unitKerjaId], references: [id])
+
+  tanggalAktifBerakhir    DateTime?
+  tanggalInaktifBerakhir  DateTime?
+
+  fileDigitalKey  String?
+  fileMimeType    String?
+  fileUkuranBytes Int?
+
+  catatan String? @db.Text
+
+  createdById String
+  createdBy   User   @relation("ArsipCreatedBy", fields: [createdById], references: [id])
+  updatedById String?
+  updatedBy   User?  @relation("ArsipUpdatedBy", fields: [updatedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lokasiSimpan        LokasiSimpan?
+  usulMusnahs         UsulMusnah[]
+  perpanjanganRetensi PerpanjanganRetensi[]
+
+  @@index([status])
+  @@index([unitKerjaId])
+  @@index([kodeKlasifikasiId])
+  @@index([tahun])
+  @@index([tanggalAktifBerakhir])
+  @@index([tanggalInaktifBerakhir])
+  @@index([status, unitKerjaId])
+  @@index([status, tanggalAktifBerakhir])
+
+  @@map("arsip")
+}
+
+model LokasiSimpan {
+  id      String @id @default(cuid())
+  arsipId String @unique
+  arsip   Arsip  @relation(fields: [arsipId], references: [id], onDelete: Cascade)
+
+  nomorLaci   String?
+  nomorRak    String?
+  nomorBoks   String?
+  nomorFolder String?
+
+  keterangan String? @db.Text
+
+  updatedBySetumId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("lokasi_simpan")
+}
+
+// =============================================================================
+// WORKFLOW: PEMUSNAHAN ARSIP
+// =============================================================================
+
+model UsulMusnah {
+  id      String @id @default(cuid())
+  arsipId String
+  arsip   Arsip  @relation(fields: [arsipId], references: [id])
+
+  fileNotaDinasKey String?
+  uraianSingkat    String? @db.Text
+  masaSimpan       Int
+
+  statusApproval    StatusApproval @default(PENDING)
+  approvedOlehId    String?
+  approvedOleh      User?          @relation("UsulApprovedOleh", fields: [approvedOlehId], references: [id])
+  penilaianApproval String?        @db.Text
+  tanggalApproval   DateTime?
+
+  statusVerifikasiSetum StatusApproval @default(PENDING)
+  verifikasiSetumId     String?
+  verifikasiSetum       User?          @relation("UsulVerifikasiSetum", fields: [verifikasiSetumId], references: [id])
+  catatanSetum          String?        @db.Text
+  tanggalVerifikasi     DateTime?
+
+  diajukanOlehId String
+  diajukanOleh   User   @relation("UsulDiajukanOleh", fields: [diajukanOlehId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([arsipId])
+  @@index([statusApproval])
+  @@index([statusVerifikasiSetum])
+  @@index([statusApproval, statusVerifikasiSetum])
+  @@map("usul_musnah")
+}
+
+// =============================================================================
+// WORKFLOW: PERPANJANGAN RETENSI
+// =============================================================================
+
+model PerpanjanganRetensi {
+  id      String @id @default(cuid())
+  arsipId String
+  arsip   Arsip  @relation(fields: [arsipId], references: [id])
+
+  durasiPerpanjanganBulan Int
+  alasanPerpanjangan      String @db.Text
+
+  status StatusApproval @default(PENDING)
+
+  approvedOlehId  String?
+  approvedOleh    User?   @relation("PerpanjanganApproved", fields: [approvedOlehId], references: [id])
+  catatanApproval String? @db.Text
+
+  tanggalInaktifBaruBerakhir DateTime?
+
+  diajukanOlehId String
+  diajukanOleh   User   @relation("PerpanjanganDiajukan", fields: [diajukanOlehId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([arsipId])
+  @@index([status])
+  @@map("perpanjangan_retensi")
+}
+
+// =============================================================================
+// SISTEM PENDUKUNG
+// =============================================================================
+
+model AuditLog {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  action     String
+  entityType String
+  entityId   String
+
+  oldValue Json?
+  newValue Json?
+
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_log")
+}
+
+model Notifikasi {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  jenis  JenisNotifikasi
+  judul  String
+  pesan  String          @db.Text
+  isRead Boolean         @default(false)
+
+  entityType String?
+  entityId   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@map("notifikasi")
+}

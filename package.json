@@ -1,0 +1,32 @@
+{
+  "name": "drms-asabri",
+  "version": "1.0.0",
+  "packageManager": "pnpm@11.0.0-alpha.11",
+  "private": true,
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "db:generate": "pnpm --filter @drms/database db:generate",
+    "db:migrate:dev": "pnpm --filter @drms/database db:migrate:dev",
+    "db:migrate:deploy": "pnpm --filter @drms/database db:migrate:deploy",
+    "db:seed": "pnpm --filter @drms/database db:seed",
+    "db:studio": "pnpm --filter @drms/database db:studio",
+    "db:reset": "pnpm --filter @drms/database db:reset",
+    "docker:dev": "docker compose -f docker/docker-compose.yml up -d",
+    "docker:down": "docker compose -f docker/docker-compose.yml down"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "typescript": "^5.4.0",
+    "prettier": "^3.2.0",
+    "eslint": "^8.57.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}
